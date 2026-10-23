@@ -10,7 +10,7 @@ CREATE OR REPLACE AGENT AGENT_OPS_ANALYST
   FROM SPECIFICATION
   $$
   models:
-    orchestration: auto
+    orchestration: claude-sonnet-5-5
   orchestration:
     budget:
       seconds: 60
@@ -39,7 +39,7 @@ CREATE OR REPLACE AGENT AGENT_PM_COPILOT
   FROM SPECIFICATION
   $$
   models:
-    orchestration: auto
+    orchestration: claude-sonnet-5-5
   orchestration:
     budget:
       seconds: 60
@@ -80,7 +80,7 @@ CREATE OR REPLACE AGENT CSM_COPILOT
   FROM SPECIFICATION
   $$
   models:
-    orchestration: auto
+    orchestration: claude-sonnet-5-5
   orchestration:
     budget:
       seconds: 60
@@ -121,7 +121,7 @@ CREATE OR REPLACE AGENT FINANCE_COGS_COPILOT
   FROM SPECIFICATION
   $$
   models:
-    orchestration: auto
+    orchestration: claude-sonnet-5-5
   orchestration:
     budget:
       seconds: 60

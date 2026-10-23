@@ -335,24 +335,6 @@ AGENTS = {
 }
 
 
-@st.cache_data(ttl=3600)
-def agent_config(agent: str) -> dict:
-    """Configured model and skills (tools) for an agent, read from DESCRIBE AGENT."""
-    try:
-        df = run(f"DESCRIBE AGENT AGENT_MEMENTO.SEMANTIC.{agent}")
-        spec = json.loads(df["agent_spec"].iloc[0]) if len(df) else {}
-    except Exception:
-        spec = {}
-    tools = []
-    for t in spec.get("tools", []):
-        ts = t.get("tool_spec", {})
-        res = spec.get("tool_resources", {}).get(ts.get("name"), {})
-        kind = {"cortex_analyst_text_to_sql": "Cortex Analyst", "cortex_search": "Cortex Search"}.get(ts.get("type"), ts.get("type"))
-        src = res.get("semantic_view") or res.get("name") or ""
-        tools.append({"name": ts.get("name"), "kind": kind, "source": src.split(".")[-1]})
-    return {"model": spec.get("models", {}).get("orchestration", "auto"), "tools": tools}
-
-
 def agent_text(raw: str) -> dict:
     """Pull answer text, generated SQL, tools used and model metadata out of a DATA_AGENT_RUN response."""
     resp = json.loads(raw)
@@ -397,9 +379,7 @@ def run_caption(m: dict) -> str:
 
 
 with tab_chat:
-    agent_key = f"agent_for_{persona}"
-    st.session_state.setdefault(agent_key, cfg["agent"])
-    agent = st.session_state[agent_key]
+    agent = cfg["agent"]
     key = f"chat_{persona}_{agent}"
     history = st.session_state.setdefault(key, [])
 
@@ -408,7 +388,6 @@ with tab_chat:
         st.markdown("Plain-English questions, answered by a Cortex Agent from governed data. Each answer shows the SQL it ran.")
         if st.button("Clear", icon=":material/delete:"):
             st.session_state[key] = []
-            st.session_state.pop(f"pill_{key}", None)
             st.rerun()
     st.caption(":material/info: In this demo app the agent runs with the app owner's role. In Snowflake Intelligence, "
                "CoCo or MCP it runs with your own role, so row access and masking apply automatically.")
@@ -422,35 +401,14 @@ with tab_chat:
             if m["role"] == "assistant":
                 st.caption(run_caption(m))
 
-    pills = st.empty()
-    pick = None
-    if not history:
-        pick = pills.pills("Try asking", SAMPLES[persona], key=f"pill_{key}")
     thread = st.container()
     with thread:
         for m in history:
             show(m)
 
-    # Run settings bar, directly above the input box.
-    conf = agent_config(agent)
-    with st.container(border=True):
-        bar = st.columns([3, 4, 2], vertical_alignment="center")
-        bar[0].selectbox("Agent", list(AGENTS), key=agent_key, format_func=AGENTS.get,
-                         help="Which Cortex Agent answers. Defaults to this persona's copilot; switching keeps a separate thread per agent.")
-        with bar[1]:
-            st.markdown("**Skill**")
-            for t in conf["tools"] or [{"name": "none", "kind": "", "source": ""}]:
-                st.badge(f"{t['name']} · {t['kind']} on {t['source']}", icon=":material/build:", color="violet")
-        with bar[2]:
-            st.markdown("**Model**", help="Set on the agent object. 'auto' lets Snowflake choose; each answer shows the model actually used.")
-            last = next((m.get("model") for m in reversed(history) if m.get("model")), None)
-            st.badge(f"{conf['model']}" + (f" → {last}" if last and conf["model"] == "auto" else ""),
-                     icon=":material/memory:", color="gray")
-
-    prompt = st.chat_input(f"Ask {AGENTS[agent]} anything about calls, cost or accounts") or pick
+    prompt = st.chat_input(f"Ask {AGENTS[agent]} anything about calls, cost or accounts")
     if prompt:
         # Render the turn in place (no st.rerun) so the page is not redrawn and greyed out while the agent works.
-        pills.empty()
         user = {"role": "user", "text": prompt}
         history.append(user)
         with thread:
